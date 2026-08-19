@@ -2,6 +2,16 @@
 
 Windows tooling and documentation for inspecting and changing the Intel Arc Pro B70 **PCIe Gen4 Downgrade** firmware configuration.
 
+## Download for Windows
+
+**[⬇ Download the B70Pcie Manual IGSC Package for Windows x64](https://github.com/TwilightTime7734/B70Pcie/releases/download/v0.1-manual/B70Pcie-Manual-IGSC-1.3.1-win64.zip)**
+
+Unzip the package and keep **`igsc.exe` and `igsc.dll` together in the same folder**. Run the manual procedure from an **Administrator Command Prompt**.
+
+This is the current manual package. A guarded `B70Pcie.exe` is planned to automate the process.
+
+See: [Manual procedure](docs/MANUAL_PROCEDURE.md)
+
 ## Why this exists
 
 A tested Intel Arc Pro B70 was limited to **PCIe Gen4 x16** even though the card and platform were Gen5-capable. Reading the GPU's GSC/GFSP configuration directly showed the PCIe Gen4 downgrade setting enabled.
