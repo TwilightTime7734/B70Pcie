@@ -98,6 +98,8 @@ Relevant upstream source locations include:
 
 This is an independent community project and is not affiliated with or endorsed by Intel. Use firmware-level configuration tools at your own risk.
 
+This repository was developed and released with assistance from **ChatGPT by OpenAI**. ChatGPT helped trace the relevant Intel open-source code paths, organize the testing procedure, and prepare the documentation and GitHub release. The hardware testing, decisions, and validation were performed by the repository owner. One goal of noting this collaboration is to show other independent and small-scale developers that useful fixes can be researched, validated, documented, and shared publicly without a large development team.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
