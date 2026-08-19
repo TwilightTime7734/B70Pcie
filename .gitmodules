@@ -1,0 +1,6 @@
+[submodule "third_party/igsc"]
+	path = third_party/igsc
+	url = https://github.com/intel/igsc.git
+[submodule "third_party/metee"]
+	path = third_party/metee
+	url = https://github.com/intel/metee.git

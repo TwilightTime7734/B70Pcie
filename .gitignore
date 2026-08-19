@@ -1,0 +1,21 @@
+# B70Pcie build output
+build/
+
+# Compiled output
+*.exe
+*.obj
+*.lib
+*.pdb
+*.ilk
+*.exp
+
+# Visual Studio user files
+*.user
+*.suo
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
