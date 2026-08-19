@@ -132,18 +132,19 @@ Read-only status may be useful more broadly, but untested devices should not rec
 
 A safe write path should:
 
-1. Require Administrator privileges / successful IGSC device access.
-2. Enumerate devices and display PCI BDF and IDs.
-3. Refuse writes to untested device IDs by default.
-4. Read command 16 and require at least 20 response bytes.
-5. Require `Available = 1` and `Configurable = 1` for bit 1.
-6. Copy exactly bytes 12-15 into the request.
-7. Change only bit 1.
-8. If Pending already equals the requested state, make no write.
-9. Send command 15 only once.
-10. Require a 4-byte response.
-11. Read command 16 again and verify the requested Pending value.
-12. Clearly state when a cold shutdown/power-on is required.
+1. Tell the user to **save all work and close running applications before continuing**.
+2. Require Administrator privileges / successful IGSC device access.
+3. Enumerate devices and display PCI BDF and IDs.
+4. Refuse writes to untested device IDs by default.
+5. Read command 16 and require at least 20 response bytes.
+6. Require `Available = 1` and `Configurable = 1` for bit 1.
+7. Copy exactly bytes 12-15 into the request.
+8. Change only bit 1.
+9. If Pending already equals the requested state, make no write.
+10. Send command 15 only once.
+11. Require a 4-byte response.
+12. Read command 16 again and verify the requested Pending value.
+13. Clearly state when a cold shutdown/power-on is required.
 
 ## Upstream source references
 
