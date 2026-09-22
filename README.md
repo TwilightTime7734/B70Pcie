@@ -35,10 +35,12 @@ Planned interface:
 
 ```text
 B70Pcie.exe list
-B70Pcie.exe status
-B70Pcie.exe disable
-B70Pcie.exe enable
+B70Pcie.exe status  [device]
+B70Pcie.exe disable [device]
+B70Pcie.exe enable  [device]
 ```
+
+`device` is an index from `list` or a PCI address (`0000:03:00.0` or `03:00.0`). With more than one B70 installed, `status` reports every card, and `disable`/`enable` require an explicit device.
 
 The write path will be intentionally conservative: read first, validate the response, preserve every unrelated configuration bit, change only the PCIe downgrade bit, write once, and read back to verify the pending state.
 

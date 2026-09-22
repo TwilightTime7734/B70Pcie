@@ -1,8 +1,11 @@
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -134,19 +137,19 @@ std::vector<Device> enumerateDevices()
     return devices;
 }
 
-void printDeviceLine(size_t index, const Device& device)
+void printDeviceLine(size_t index, const Device& device, std::ostream& out = std::cout)
 {
     const auto& info = device.info;
-    std::cout << "[" << index << "] "
+    out << "[" << index << "] "
               << pciBdf(info) << " "
               << hex4(info.vendor_id) << ":" << hex4(info.device_id)
               << " subsystem " << hex4(info.subsys_vendor_id) << ":" << hex4(info.subsys_device_id);
 
     if (isSupportedB70(info)) {
-        std::cout << " Intel Arc Pro B70 (tested write target)";
+        out << " Intel Arc Pro B70 (tested write target)";
     }
 
-    std::cout << "\n";
+    out << "\n";
 }
 
 int commandList()
@@ -162,6 +165,42 @@ int commandList()
     }
 
     return 0;
+}
+
+// Index is the position printed by "list" (all IGSC devices, not just B70s) so users can
+// copy it directly. BDF is accepted too because it survives enumeration-order changes.
+std::optional<size_t> findDeviceIndex(const std::vector<Device>& devices, const std::string& selector)
+{
+    if (!selector.empty() && selector.size() <= 9 &&
+        selector.find_first_not_of("0123456789") == std::string::npos) {
+        const size_t index = static_cast<size_t>(std::stoul(selector));
+        if (index < devices.size()) {
+            return index;
+        }
+        return std::nullopt;
+    }
+
+    std::string wanted = selector;
+    std::transform(wanted.begin(), wanted.end(), wanted.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (wanted.size() == 7) {
+        wanted = "0000:" + wanted;
+    }
+    for (size_t i = 0; i < devices.size(); ++i) {
+        if (pciBdf(devices[i].info) == wanted) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
+void printSelectorNotFound(const std::vector<Device>& devices, const std::string& selector)
+{
+    std::cerr << "No IGSC device matches \"" << selector << "\". Enumerated devices:\n";
+    for (size_t i = 0; i < devices.size(); ++i) {
+        std::cerr << "  ";
+        printDeviceLine(i, devices[i], std::cerr);
+    }
 }
 
 bool openSupportedDevice(const Device& device, igsc_device_handle& handle)
@@ -235,7 +274,7 @@ void printStatusDetails(const igsc_device_info& info, const GfspConfig& config)
     std::cout << "Default:       " << enabledDisabled(config.defaultValue) << "\n\n";
 }
 
-int printStatus(const Device& device)
+int printStatus(const Device& device, std::optional<size_t> index)
 {
     igsc_device_handle handle{};
     if (!openSupportedDevice(device, handle)) {
@@ -253,7 +292,11 @@ int printStatus(const Device& device)
 
     if (config.current || config.pending) {
         std::cout << "WARNING: This firmware setting can force the GPU to PCIe Gen4.\n";
-        std::cout << "Use \"B70Pcie disable\" to request the default state.\n";
+        std::cout << "Use \"B70Pcie disable";
+        if (index) {
+            std::cout << " " << *index;
+        }
+        std::cout << "\" to request the default state.\n";
     } else {
         std::cout << "No change required.\n";
     }
@@ -261,7 +304,7 @@ int printStatus(const Device& device)
     return 0;
 }
 
-int commandStatus()
+int commandStatus(const std::optional<std::string>& selector)
 {
     const auto devices = enumerateDevices();
     if (devices.empty()) {
@@ -269,18 +312,48 @@ int commandStatus()
         return 1;
     }
 
-    for (const auto& device : devices) {
-        if (device.info.vendor_id == kIntelVendorId && device.info.device_id == kTestedB70DeviceId) {
-            return printStatus(device);
+    if (selector) {
+        const auto index = findDeviceIndex(devices, *selector);
+        if (!index) {
+            printSelectorNotFound(devices, *selector);
+            return 1;
+        }
+        return printStatus(devices[*index], index);
+    }
+
+    std::vector<size_t> supportedIndexes;
+    for (size_t i = 0; i < devices.size(); ++i) {
+        if (isSupportedB70(devices[i].info)) {
+            supportedIndexes.push_back(i);
         }
     }
 
-    std::cout << "No supported Intel Arc Pro B70 IGSC device found.\n";
-    std::cout << "Supported read-only PCI ID: 8086:E223\n";
-    return 1;
+    if (supportedIndexes.empty()) {
+        std::cout << "No supported Intel Arc Pro B70 IGSC device found.\n";
+        std::cout << "Supported read-only PCI ID: 8086:E223\n";
+        return 1;
+    }
+
+    // Single card keeps the original output; multiple cards are each reported with their index.
+    if (supportedIndexes.size() == 1) {
+        return printStatus(devices[supportedIndexes[0]], std::nullopt);
+    }
+
+    int result = 0;
+    for (size_t n = 0; n < supportedIndexes.size(); ++n) {
+        const size_t i = supportedIndexes[n];
+        if (n > 0) {
+            std::cout << "\n";
+        }
+        std::cout << "[" << i << "] ";
+        if (printStatus(devices[i], i) != 0) {
+            result = 1;
+        }
+    }
+    return result;
 }
 
-int commandWrite(bool requestedEnabled)
+int commandWrite(bool requestedEnabled, const std::optional<std::string>& selector)
 {
     std::cout << "IMPORTANT: Save all work and close running applications before continuing.\n";
     std::cout << "This operation changes a persistent GPU firmware configuration value and may require a cold shutdown.\n\n";
@@ -296,31 +369,45 @@ int commandWrite(bool requestedEnabled)
         return 1;
     }
 
-    std::vector<size_t> supportedIndexes;
-    for (size_t i = 0; i < devices.size(); ++i) {
-        const auto& device = devices[i];
-        if (isSupportedB70(device.info)) {
-            supportedIndexes.push_back(i);
+    const Device* selected = nullptr;
+    if (selector) {
+        const auto index = findDeviceIndex(devices, *selector);
+        if (!index) {
+            printSelectorNotFound(devices, *selector);
+            std::cerr << "No firmware setting was changed.\n";
+            return 1;
         }
-    }
-
-    if (supportedIndexes.empty()) {
-        std::cout << "No supported Intel Arc Pro B70 IGSC device found.\n";
-        std::cout << "Supported write PCI ID: 8086:E223\n";
-        return 1;
-    }
-
-    if (supportedIndexes.size() > 1) {
-        std::cerr << "Refusing write: multiple supported Intel Arc Pro B70 IGSC devices were found.\n";
-        std::cerr << "Use \"B70Pcie.exe list\" to inspect the enumerated devices.\n";
-        std::cerr << "Indexed writes are not implemented yet, so no firmware setting was changed.\n\n";
-        for (const size_t index : supportedIndexes) {
-            printDeviceLine(index, devices[index]);
+        selected = &devices[*index];
+        std::cout << "Selected device:\n  ";
+        printDeviceLine(*index, *selected);
+        std::cout << "\n";
+    } else {
+        std::vector<size_t> supportedIndexes;
+        for (size_t i = 0; i < devices.size(); ++i) {
+            if (isSupportedB70(devices[i].info)) {
+                supportedIndexes.push_back(i);
+            }
         }
-        return 1;
-    }
 
-    const Device* selected = &devices[supportedIndexes[0]];
+        if (supportedIndexes.empty()) {
+            std::cout << "No supported Intel Arc Pro B70 IGSC device found.\n";
+            std::cout << "Supported write PCI ID: 8086:E223\n";
+            return 1;
+        }
+
+        if (supportedIndexes.size() > 1) {
+            std::cerr << "Refusing write: multiple supported Intel Arc Pro B70 IGSC devices were found.\n";
+            std::cerr << "Specify the target by index or PCI address, e.g. \"B70Pcie.exe "
+                      << (requestedEnabled ? "enable" : "disable") << " " << supportedIndexes[0] << "\".\n";
+            std::cerr << "No firmware setting was changed.\n\n";
+            for (const size_t index : supportedIndexes) {
+                printDeviceLine(index, devices[index]);
+            }
+            return 1;
+        }
+
+        selected = &devices[supportedIndexes[0]];
+    }
 
     igsc_device_handle handle{};
     if (!openSupportedDevice(*selected, handle)) {
@@ -473,10 +560,13 @@ void printUsage()
 {
     std::cout << "Usage:\n";
     std::cout << "  B70Pcie.exe list\n";
-    std::cout << "  B70Pcie.exe status\n";
-    std::cout << "  B70Pcie.exe disable\n";
-    std::cout << "  B70Pcie.exe enable\n";
+    std::cout << "  B70Pcie.exe status  [device]\n";
+    std::cout << "  B70Pcie.exe disable [device]\n";
+    std::cout << "  B70Pcie.exe enable  [device]\n";
     std::cout << "\n";
+    std::cout << "device is an index from \"list\" or a PCI address (0000:03:00.0 or 03:00.0).\n";
+    std::cout << "status without device reports every supported B70.\n";
+    std::cout << "disable/enable without device require exactly one supported B70.\n\n";
     std::cout << "disable clears PCIe Gen4 Downgrade bit 1.\n";
     std::cout << "enable sets PCIe Gen4 Downgrade bit 1.\n";
 }
@@ -485,23 +575,26 @@ void printUsage()
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
+    if (argc < 2 || argc > 3) {
         printUsage();
         return 1;
     }
 
     const std::string command = argv[1];
-    if (command == "list") {
+    const std::optional<std::string> selector =
+        argc == 3 ? std::optional<std::string>(argv[2]) : std::nullopt;
+
+    if (command == "list" && !selector) {
         return commandList();
     }
     if (command == "status") {
-        return commandStatus();
+        return commandStatus(selector);
     }
     if (command == "disable") {
-        return commandWrite(false);
+        return commandWrite(false, selector);
     }
     if (command == "enable") {
-        return commandWrite(true);
+        return commandWrite(true, selector);
     }
 
     printUsage();

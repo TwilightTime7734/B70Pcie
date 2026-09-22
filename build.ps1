@@ -24,10 +24,16 @@ function Invoke-Native {
     }
 }
 
-$msvcRoots = Get-ChildItem -Directory "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC" -ErrorAction SilentlyContinue |
+# vswhere finds any VS edition/version (local Community installs and CI runner images alike).
+$vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+$vsRoot = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+if (-not $vsRoot) {
+    throw "No Visual Studio installation with the x64 C++ toolset was found."
+}
+$msvcRoots = Get-ChildItem -Directory (Join-Path $vsRoot "VC\Tools\MSVC") -ErrorAction SilentlyContinue |
     Sort-Object Name -Descending
 if (-not $msvcRoots) {
-    throw "MSVC was not found under Visual Studio 18 Community."
+    throw "MSVC was not found under $vsRoot."
 }
 $msvcRoot = $msvcRoots[0].FullName
 $cl = Join-Path $msvcRoot "bin\Hostx64\x64\cl.exe"
@@ -38,8 +44,10 @@ if (-not (Test-Path $cl)) {
     throw "cl.exe was not found under $msvcRoot."
 }
 
+# Skip non-version folders (e.g. "wdf" from the WDK), which would otherwise sort first.
 $sdkRoots = Get-ChildItem -Directory "C:\Program Files (x86)\Windows Kits\10\Include" -ErrorAction SilentlyContinue |
-    Sort-Object Name -Descending
+    Where-Object { $_.Name -match '^\d+\.' -and (Test-Path (Join-Path $_.FullName "um\Windows.h")) } |
+    Sort-Object { [version]$_.Name } -Descending
 if (-not $sdkRoots) {
     throw "Windows 10 SDK include directory was not found."
 }
