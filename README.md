@@ -71,6 +71,22 @@ Disabling the downgrade flag allows normal PCIe link training; it does not
 guarantee Gen5. A cold shutdown/power-on may be required for Current to reflect
 Pending. The program does not shut the computer down automatically.
 
+## IT administrator note: downgrade at boot
+
+The owner reports that the B70 initially negotiates **Gen5 x16** at power-on,
+but can come up at **Gen4 x16 after Windows boots** when the persistent PCIe
+Gen4 Downgrade flag is enabled. On the owner's workstation, clearing that flag
+before shutting Windows down has consistently allowed the next startup to run
+at Gen5 x16.
+
+For systems showing the same behavior, an elevated end-of-session or
+pre-shutdown check can leave each affected card at **Pending: Disabled** before
+power-off. `disable` clears the downgrade flag; `enable` turns the Gen4 downgrade
+setting on. Verify the actual link speed after the next startup. This is an
+owner-tested troubleshooting workaround, not a guarantee of Gen5 operation on
+every system. On multi-card systems, check each card; an unindexed `disable`
+changes at most one card per invocation.
+
 ## Build and verification
 
 Install Visual Studio C++ build tools and a Windows SDK, then clone with the pinned dependencies:
