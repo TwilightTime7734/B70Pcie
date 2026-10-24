@@ -1,0 +1,35 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: recursive
+
+      - name: Build and run simulated CLI tests
+        shell: pwsh
+        run: ./tests/test.ps1
+
+      - name: Package Windows executable and licenses
+        shell: pwsh
+        run: ./release/package.ps1
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: B70Pcie-win64-${{ github.sha }}
+          path: |
+            build/bin/B70Pcie.exe
+            build/release/B70Pcie-v1.1-win64.zip
+            build/release/B70Pcie-v1.1-win64.zip.sha256
+          if-no-files-found: error
+
