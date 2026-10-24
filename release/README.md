@@ -1,13 +1,27 @@
-# Manual IGSC package
+# Windows release packages
 
-This folder contains the current Windows manual-use package for the validated Intel Arc Pro B70 PCIe Gen4 Downgrade procedure.
+The normal download is the native `B70Pcie.exe` package. It contains the required
+IGSC and MeTee functionality and requires no separate DLLs.
 
-## Package
+After building and testing, run:
 
-`B70Pcie-Manual-IGSC-1.3.1-win64.zip`
+```powershell
+./release/package.ps1
+```
 
-Inside the ZIP, `igsc.exe` and its matching `igsc.dll` are kept **side-by-side in the same directory**. Do not separate them. The package also contains Intel's Apache-2.0 license, SHA-256 checksums, and a short README.
+This creates `build/release/B70Pcie-v1.1-win64.zip` and its `.sha256` file. To
+package a specific previously validated executable, pass `-BinaryPath` with its
+path. Packaging does not rebuild or modify the executable.
 
-These IGSC binaries were locally built from Intel's upstream open-source IGSC 1.3.1 source and were the binaries used to validate the procedure documented in this repository. They are not presented as official Intel-distributed binaries.
+The ZIP contains the executable, Windows usage instructions, the MIT license,
+third-party notices, Intel IGSC and MeTee licenses, the MeTee Windows WDK notice,
+and SHA-256 checksums for the packaged files.
 
-The final `B70Pcie.exe` release will replace the raw manual GFSP workflow for normal users.
+See [v1.1 release notes](RELEASE_NOTES_v1.1.md) for the changes and test scope.
+Publish a release from the corresponding source commit and upload the ZIP and
+its checksum after reviewing the source update.
+
+The previous [manual IGSC package](https://github.com/TwilightTime7734/B70Pcie/releases/tag/v0.1-manual)
+remains available. Its `igsc.exe` and `igsc.dll` must remain side-by-side. The
+manual binaries were locally built from Intel's upstream IGSC 1.3.1 source and
+are not presented as official Intel-distributed binaries.

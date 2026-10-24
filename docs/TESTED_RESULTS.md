@@ -132,3 +132,19 @@ Downgrade Current = 0  -> PCIe Gen5 x16
 ```
 
 This is one validated system, not a claim that every Gen4 B70 problem has the same cause. Users should still verify their own firmware state and platform capabilities before writing anything.
+
+## Native utility validation - 2026-10-23
+
+The repository owner reported testing the updated executable on one physical
+Arc Pro B70 by enabling the downgrade flag, disabling it, and confirming the
+configuration with `status`. The owner also exercised indexed targeting and
+automatic targeting on that card and reported successful results.
+
+The 16 simulated CLI test groups verify all-device reporting, explicit device
+indexes, repeated automatic disabling with Pending still awaiting a cold power
+cycle, mixed devices, invalid indexes, confirmation, read/write failures,
+fresh-Pending preservation, and full-field read-back verification.
+
+Testing several physical B70s together is still outstanding. These results do
+not establish that every installed B70 will expose an IGSC GSC child interface.
+

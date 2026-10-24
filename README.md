@@ -1,16 +1,14 @@
 # B70Pcie
 
-Windows tooling and documentation for inspecting and changing the Intel Arc Pro B70 **PCIe Gen4 Downgrade** firmware configuration.
+Windows-native utility for inspecting and changing the Intel Arc Pro B70 **PCIe Gen4 Downgrade** firmware configuration.
 
 ## Download for Windows
 
-**[⬇ Download the B70Pcie Manual IGSC Package for Windows x64](https://github.com/TwilightTime7734/B70Pcie/releases/download/v0.1-manual/B70Pcie-Manual-IGSC-1.3.1-win64.zip)**
+**[Download the latest Windows release](https://github.com/TwilightTime7734/B70Pcie/releases/latest)**
 
-Unzip the package and keep **`igsc.exe` and `igsc.dll` together in the same folder**. Run the manual procedure from an **Administrator Command Prompt**.
+Choose the Windows x64 package under **Assets**, unzip it, and run from an **Administrator terminal**. The native `B70Pcie.exe` includes the required IGSC and MeTee functionality; no separate DLL is required.
 
-This is the current manual package. A guarded `B70Pcie.exe` is planned to automate the process.
-
-See: [Manual procedure](docs/MANUAL_PROCEDURE.md)
+See [v1.1 release notes](release/RELEASE_NOTES_v1.1.md) for indexed targeting and automatic next-card selection. The original [manual procedure](docs/MANUAL_PROCEDURE.md) and [manual package](https://github.com/TwilightTime7734/B70Pcie/releases/tag/v0.1-manual) remain available for reference.
 
 ## Why this exists
 
@@ -25,22 +23,71 @@ PCIe link:            Gen5 x16 / 32.0 GT/s
 
 HWiNFO confirmed the restored **PCIe 5.0 x16** link.
 
-## Project status
-
-The low-level procedure has been validated on an Intel Arc Pro B70 with PCI device ID **8086:E223** on Windows using Intel IGSC 1.3.1.
-
-The next project milestone is a guarded Windows executable (`B70Pcie.exe`) that will automate the validated sequence without requiring users to create binary files or issue raw GFSP commands.
-
-Planned interface:
+## Commands
 
 ```text
 B70Pcie.exe list
 B70Pcie.exe status
+B70Pcie.exe status 1
+B70Pcie.exe disable 1
 B70Pcie.exe disable
-B70Pcie.exe enable
+B70Pcie.exe enable 1
 ```
 
-The write path will be intentionally conservative: read first, validate the response, preserve every unrelated configuration bit, change only the PCIe downgrade bit, write once, and read back to verify the pending state.
+`list` displays all detected IGSC GSC child devices. `status` displays each
+supported B70's configuration; other devices are labeled unsupported. Adding an
+index to `status` reads only that device.
+
+Indexes start at **0** and match the `[0]`, `[1]`, etc. printed by `list` and
+`status`, including unsupported devices. Thus `disable 1` targets device **[1]**,
+not the first B70. Indexes describe the current enumeration and can change after
+hardware or driver changes. Check the displayed PCI address before confirming.
+
+## Disabling the downgrade flag
+
+`disable 1` clears the pending downgrade flag only for device [1].
+
+`disable` with no index checks supported B70s in list order and selects the first
+card whose **Pending** downgrade flag is enabled. It changes at most one card
+per invocation. Repeat the command to advance through the remaining cards.
+Cards with Pending already disabled are skipped, even when Current is still
+enabled awaiting a cold shutdown/power-on. If all cards already have Pending
+disabled, the command succeeds without a write or confirmation prompt.
+
+Automatic selection stops without a write if a checked card cannot be read or
+the selected card is not Available/Configurable. It does not silently select a
+different card after an error. You can inspect `status` and explicitly target
+another supported card by index.
+
+`enable 1` sets the pending downgrade flag on device [1]. `enable` with no index
+retains the single-card behavior and refuses when multiple supported B70s exist.
+
+Before a change, the program displays the selected index and PCI address and
+requires typing `YES`. It then reads the configuration again, copies the full
+four-byte Pending field, changes only bit 1, sends one write, and verifies the
+complete Pending field. Writes are refused if device enumeration is incomplete.
+
+Disabling the downgrade flag allows normal PCIe link training; it does not
+guarantee Gen5. A cold shutdown/power-on may be required for Current to reflect
+Pending. The program does not shut the computer down automatically.
+
+## Build and verification
+
+Install Visual Studio C++ build tools and a Windows SDK, then clone with the pinned dependencies:
+
+```powershell
+git clone --recurse-submodules https://github.com/TwilightTime7734/B70Pcie.git
+cd B70Pcie
+./tests/test.ps1
+```
+
+This builds `build/bin/B70Pcie.exe` and runs 16 simulated CLI test groups. `./build.ps1` builds without running the tests. The build discovers installed Visual Studio C++ tools with `vswhere`; it does not require CMake or Ninja.
+
+The tests use simulated IGSC devices and do not access or change GPU firmware. They cover multiple cards, indexed selection, repeated automatic selection, unrelated-bit preservation, confirmation, and failure/read-back handling. The GitHub Actions workflow builds, tests, and prepares a ZIP artifact.
+
+On 2026-10-23, the owner reported successful enable/disable, status checks, indexed targeting, and automatic targeting on one physical B70. **Multiple physical B70s still need validation together.** Devices absent from IGSC enumeration cannot be accessed by this utility.
+
+Use `./release/package.ps1` to prepare the ZIP, usage instructions, licenses, and checksums. See [release packaging](release/README.md).
 
 ## What was discovered
 
@@ -64,22 +111,15 @@ igsc_gfsp_heci_cmd(...)
 - [Technical details](docs/TECHNICAL_DETAILS.md) — GFSP layout, command IDs, offsets, and bit handling.
 - [Tested results](docs/TESTED_RESULTS.md) — before/write/after values and the confirmed Gen5 x16 result.
 
-## Important safety note
+## Requirements and safety
 
-This changes a persistent GPU firmware **configuration value**. It is not a firmware image flash, but it is still a firmware-level write.
+- Windows x64 and an Intel graphics driver exposing the GPU's GSC/HECI device.
+- Administrator access for configuration reads and writes.
+- Supported PCI vendor/device ID: **8086:E223**.
 
-The manual procedure should currently be treated as **tested on the Arc Pro B70 8086:E223 only**. Do not blindly send command 15 with a hard-coded value. Always read the existing Pending field first and preserve every bit except bit 1.
+This changes a persistent GPU firmware configuration value. It does not flash a firmware image. Writes preserve the existing Pending field and change only bit 1. The original procedure used Intel IGSC 1.3.1, and the native build retains the pinned IGSC and MeTee source versions documented in [third-party notices](THIRD_PARTY_NOTICES.md).
 
 If Gen5 link training is unstable on a particular platform, forcing the slot back to Gen4 in system BIOS is a practical recovery path.
-
-## Requirements for the manual method
-
-- Windows
-- Administrator Command Prompt
-- Intel graphics driver exposing the GSC/HECI device
-- Intel IGSC with the generic GFSP command enabled
-
-The procedure was validated with **IGSC 1.3.1**.
 
 ## Upstream references
 
