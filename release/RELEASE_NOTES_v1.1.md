@@ -36,16 +36,16 @@ A cold shutdown/power-on may be required for Current to match Pending.
 Disabling the downgrade flag allows normal link training and does not guarantee
 Gen5 on every platform.
 
-## Download package
+## Download
 
-`B70Pcie-v1.1-win64.zip` contains the executable, usage instructions, third-party
-notices and licenses, and `SHA256SUMS.txt`. A separate ZIP checksum accompanies
-the archive.
+Download **[B70Pcie.exe](https://github.com/TwilightTime7734/B70Pcie/releases/download/v1.1/B70Pcie.exe)** from the [v1.1 release](https://github.com/TwilightTime7734/B70Pcie/releases/tag/v1.1).
 
-SHA-256 of the owner-tested executable included in the prepared package:
+SHA-256 of the published executable:
 
 ```text
-b337a891d3d2fd0d1999a01b4627aa61be100541fabd7aba2a5d41e4efb09cdb  B70Pcie.exe
+2942fe2aad47a7dbc5206ce64f347a959aeac00ae9da989cbb8140a899fcb276  B70Pcie.exe
 ```
 
-The older v1.0 and manual release downloads remain available for reference.
+The repository also includes an optional ZIP packaging script; see
+[release packaging](README.md). The older v1.0 and manual downloads remain
+available for reference.

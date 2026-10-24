@@ -6,7 +6,7 @@ Windows-native utility for inspecting and changing the Intel Arc Pro B70 **PCIe 
 
 **[Download the latest Windows release](https://github.com/TwilightTime7734/B70Pcie/releases/latest)**
 
-Choose the Windows x64 package under **Assets**, unzip it, and run from an **Administrator terminal**. The native `B70Pcie.exe` includes the required IGSC and MeTee functionality; no separate DLL is required.
+Download **B70Pcie.exe** under **Assets** and run it from an **Administrator terminal**. The native `B70Pcie.exe` includes the required IGSC and MeTee functionality; no separate DLL is required.
 
 See [v1.1 release notes](release/RELEASE_NOTES_v1.1.md) for indexed targeting and automatic next-card selection. The original [manual procedure](docs/MANUAL_PROCEDURE.md) and [manual package](https://github.com/TwilightTime7734/B70Pcie/releases/tag/v0.1-manual) remain available for reference.
 
